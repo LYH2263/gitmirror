@@ -27,8 +27,7 @@ func (e *AuthError) Error() string {
 }
 
 func (e *AuthError) Unwrap() error {
-
-	return nil
+	return ErrAuthFailed
 }
 
 // AsAuth 构造可 %w 的认证错误。

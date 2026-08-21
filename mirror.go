@@ -192,8 +192,7 @@ func (m *Mirror) fetchAndApply(ctx context.Context, remote RemoteSpec, tr fetch.
 	fr, err := tr.Fetch(ctx, req)
 	if err != nil {
 		if errs.IsAuth(err) {
-
-			return nil, fmt.Errorf("auth failed: %v", err)
+			return nil, fmt.Errorf("auth failed: %w", ErrAuthFailed)
 		}
 		if ctx.Err() != nil {
 			return nil, ErrCanceled
