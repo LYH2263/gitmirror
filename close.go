@@ -10,6 +10,14 @@ func (m *Mirror) Close() error {
 	}
 	var first error
 
+	// Sync 仅把 tip 切到内存（Txn.Commit 不落盘），故 Close 必须在
+	// 释放镜像锁之前把 tips 快照写回 tips.json 与 refs 文件，否则重开
+	// 同一目录时 Store.load 读到的仍是旧快照，tip 全丢。
+	if m.refs != nil {
+		if err := m.refs.FlushSnapshot(); err != nil && first == nil {
+			first = err
+		}
+	}
 	if m.lock != nil {
 		if err := m.lock.Unlock(); err != nil && first == nil {
 			first = err
