@@ -31,7 +31,6 @@ type Mirror struct {
 	met       *metrics.Registry
 	lockWait  time.Duration
 	state     *persist.SyncState
-	refsBuf   []RefUpdate
 }
 
 // Open 打开或创建镜像目录。
@@ -269,19 +268,15 @@ func (m *Mirror) Refs() ([]RefUpdate, error) {
 		return nil, err
 	}
 	tips := m.refs.List()
-
-	if m.refsBuf != nil && len(m.refsBuf) == len(tips) {
-		return m.refsBuf, nil
-	}
-	m.refsBuf = make([]RefUpdate, len(tips))
+	out := make([]RefUpdate, len(tips))
 	for i, t := range tips {
-		m.refsBuf[i] = RefUpdate{
+		out[i] = RefUpdate{
 			Name:   t.Name,
 			OldOID: ZeroOID,
 			NewOID: ObjectID(t.OID),
 		}
 	}
-	return m.refsBuf, nil
+	return out, nil
 }
 
 // Resolve 查询单 ref。

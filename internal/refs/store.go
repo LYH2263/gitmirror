@@ -18,10 +18,9 @@ type Tip struct {
 
 // Store 文件系统模拟的 refs 表（refs/heads/... 文件 + tips.json 快照）。
 type Store struct {
-	mu      sync.RWMutex
-	root    string
-	tips    map[string]string
-	listBuf []Tip
+	mu   sync.RWMutex
+	root string
+	tips map[string]string
 }
 
 // Open 加载或初始化。
@@ -154,17 +153,17 @@ func (s *Store) Resolve(name string) (string, bool) {
 	return oid, ok
 }
 
-// List 返回 tip 拷贝切片。
+// List 返回 tip 拷贝切片（每次独立分配，修改不影响内部表）。
 func (s *Store) List() []Tip {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	s.listBuf = s.listBuf[:0]
+	out := make([]Tip, 0, len(s.tips))
 	for n, o := range s.tips {
-		s.listBuf = append(s.listBuf, Tip{Name: n, OID: o})
+		out = append(out, Tip{Name: n, OID: o})
 	}
-	sort.Slice(s.listBuf, func(i, j int) bool { return s.listBuf[i].Name < s.listBuf[j].Name })
-	return s.listBuf
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }
 
 // TipsMap 返回 OID map 拷贝。
