@@ -39,12 +39,16 @@ func (l *Lock) Wait(ctx context.Context) error {
 	if l == nil {
 		return errs.ErrClosed
 	}
-	deadline := time.Now().Add(l.waitMax)
-	if l.waitMax <= 0 {
-		deadline = time.Now().Add(30 * time.Second)
+	wait := l.waitMax
+	if wait <= 0 {
+		wait = 30 * time.Second
 	}
+	deadline := time.Now().Add(wait)
 	for {
-
+		// 优先尊重取消：ctx 已取消则不抢锁、立即返回。
+		if err := ctx.Err(); err != nil {
+			return errs.ErrCanceled
+		}
 		if time.Now().After(deadline) {
 			return errs.ErrLockTimeout
 		}
@@ -53,6 +57,7 @@ func (l *Lock) Wait(ctx context.Context) error {
 			l.mu.Unlock()
 			return errs.ErrClosed
 		}
+		acquired := false
 		if !l.held {
 			f, err := os.OpenFile(l.path, os.O_CREATE|os.O_RDWR, 0o644)
 			if err == nil {
@@ -60,15 +65,27 @@ func (l *Lock) Wait(ctx context.Context) error {
 				l.held = true
 				_, _ = f.WriteString(fmt.Sprintf("pid=%d\n", os.Getpid()))
 				_ = f.Sync()
-				l.mu.Unlock()
-				return nil
+				acquired = true
 			}
 		} else {
-			l.mu.Unlock()
-			return nil
+			acquired = true
 		}
 		l.mu.Unlock()
-		time.Sleep(20 * time.Millisecond)
+		if acquired {
+			return nil
+		}
+		// 重试前小睡，但 ctx 取消或超时则立即退出（不可 time.Sleep 死等）。
+		sleep := 20 * time.Millisecond
+		if d := time.Until(deadline); d < sleep {
+			sleep = d
+		}
+		t := time.NewTimer(sleep)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return errs.ErrCanceled
+		case <-t.C:
+		}
 	}
 }
 

@@ -144,7 +144,7 @@ func (m *Mirror) SyncContext(ctx context.Context) (*SyncReport, error) {
 	started := time.Now().UTC()
 	m.met.Inc("sync_begin")
 
-	if err := m.lock.Wait(context.Background()); err != nil {
+	if err := m.lock.Wait(ctx); err != nil {
 		m.met.Inc("lock_fail")
 		return nil, err
 	}
