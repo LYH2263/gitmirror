@@ -20,8 +20,21 @@ type RemoteSpec struct {
 func (r RemoteSpec) Clone() RemoteSpec {
 	out := r
 	out.FetchRefs = clone.Strings(r.FetchRefs)
+	out.ExtraHeaders = cloneHeaders(r.ExtraHeaders)
 
 	return out
+}
+
+// cloneHeaders 深拷贝 Header 切片；nil 保持 nil。
+// ExtraHeaders 是 []Header 切片，值拷贝只复制切片头，底层数组共享，
+// 调用方修改元素会写回原 Spec，故必须逐元素复制到新数组。
+func cloneHeaders(src []Header) []Header {
+	if src == nil {
+		return nil
+	}
+	dst := make([]Header, len(src))
+	copy(dst, src)
+	return dst
 }
 
 // Validate 检查 URL 与 ref 模式。

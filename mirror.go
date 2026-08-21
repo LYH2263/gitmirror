@@ -136,7 +136,7 @@ func (m *Mirror) SyncContext(ctx context.Context) (*SyncReport, error) {
 		return nil, err
 	}
 
-	remoteSnap := m.remote
+	remoteSnap := m.remote.Clone()
 	tr := m.transport
 	if tr == nil {
 		return nil, ErrNoTransport
