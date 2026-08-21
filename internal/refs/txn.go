@@ -66,7 +66,8 @@ func (t *Txn) Commit() error {
 		return errs.ErrClosed
 	}
 
-	t.store.tips = t.pending
+	// 先把 pending 落盘；只有全部成功后才切换内存，确保落盘失败时
+	// 同进程 Resolve 仍读到旧 tip。
 	for name, oid := range t.pending {
 		if err := writeRefFile(t.store.root, name, oid); err != nil {
 			t.active = false
@@ -78,11 +79,12 @@ func (t *Txn) Commit() error {
 		p := filepath.Join(t.store.root, filepath.FromSlash(name))
 		_ = os.Remove(p)
 	}
-	if err := t.store.flushLocked(); err != nil {
+	if err := t.store.flushLocked(t.pending); err != nil {
 		t.active = false
 		t.store.mu.Unlock()
 		return err
 	}
+	t.store.tips = t.pending
 	t.active = false
 	t.store.mu.Unlock()
 	return nil

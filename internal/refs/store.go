@@ -109,16 +109,18 @@ func bytesTrim(b []byte) []byte {
 func (s *Store) FlushSnapshot() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.flushLocked()
+	return s.flushLocked(s.tips)
 }
 
-func (s *Store) flushLocked() error {
-	tips := make([]Tip, 0, len(s.tips))
-	for n, o := range s.tips {
-		tips = append(tips, Tip{Name: n, OID: o})
+// flushLocked 将给定 tips 写入 tips.json 与 refs 文件；不修改 s.tips，
+// 由调用方在全部成功后再切换内存，确保落盘失败时内存 tip 不变。
+func (s *Store) flushLocked(tips map[string]string) error {
+	out := make([]Tip, 0, len(tips))
+	for n, o := range tips {
+		out = append(out, Tip{Name: n, OID: o})
 	}
-	sort.Slice(tips, func(i, j int) bool { return tips[i].Name < tips[j].Name })
-	b, err := json.MarshalIndent(tips, "", "  ")
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -129,7 +131,7 @@ func (s *Store) flushLocked() error {
 	if err := os.Rename(tmp, s.snapshotPath()); err != nil {
 		return err
 	}
-	for _, t := range tips {
+	for _, t := range out {
 		if err := writeRefFile(s.root, t.Name, t.OID); err != nil {
 			return err
 		}
