@@ -53,18 +53,21 @@ func ReceiveAndVerify(ctx context.Context, root string, data []byte, idx int) (i
 		_ = os.Remove(tmp)
 		return 0, err
 	}
+	// 必须先 Close 临时文件再 Rename：Windows 上文件仍开着句柄时 Rename 会失败，
+	// 导致 .pack.tmp 残留。数据已在 Sync 落盘，Close 仅为释放句柄。
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmp)
+		return 0, err
+	}
 
 	if err := ctx.Err(); err != nil {
-		_ = f.Close()
 		_ = os.Remove(tmp)
 		return 0, errs.ErrCanceled
 	}
 	if err := os.Rename(tmp, final); err != nil {
-		_ = f.Close()
 		_ = os.Remove(tmp)
 		return 0, err
 	}
-	_ = f.Close()
 	return wrote, nil
 }
 
