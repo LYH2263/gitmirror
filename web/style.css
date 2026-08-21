@@ -1,0 +1,5 @@
+body { font-family: Georgia, "Songti SC", serif; margin: 2rem; background: #f7f3ea; color: #1a1a1a; }
+header h1 { margin-bottom: 0.2rem; letter-spacing: 0.02em; }
+section { margin-top: 1.5rem; }
+input, button { font: inherit; padding: 0.35rem 0.6rem; margin-right: 0.4rem; }
+pre { background: #1e1e1e; color: #d8d8d8; padding: 1rem; overflow: auto; min-height: 8rem; }
