@@ -189,7 +189,7 @@ func (m *Mirror) fetchAndApply(ctx context.Context, remote RemoteSpec, tr fetch.
 		req.WantPatterns = []string{"refs/heads/*", "refs/tags/*"}
 	}
 
-	fr, err := tr.Fetch(context.Background(), req)
+	fr, err := tr.Fetch(ctx, req)
 	if err != nil {
 		if errs.IsAuth(err) {
 			return nil, fmt.Errorf("%w: %v", ErrAuthFailed, err)
@@ -203,7 +203,10 @@ func (m *Mirror) fetchAndApply(ctx context.Context, remote RemoteSpec, tr fetch.
 	var packBytes int64
 	var packCount int
 	for i, blob := range fr.Packs {
-		n, err := pack.ReceiveAndVerify(context.Background(), m.root, blob, i)
+		if err := ctx.Err(); err != nil {
+			return nil, ErrCanceled
+		}
+		n, err := pack.ReceiveAndVerify(ctx, m.root, blob, i)
 		if err != nil {
 			return nil, err
 		}
