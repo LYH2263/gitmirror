@@ -132,6 +132,11 @@ func (m *Mirror) SyncContext(ctx context.Context) (*SyncReport, error) {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	// 关闭后 m.lock 为 nil，必须先经 guard() 拦截返回 ErrClosed，
+	// 否则下方 m.lock.Wait 会对 nil 取值而 panic（close.go:33 置 nil）。
+	if err := m.guard(); err != nil {
+		return nil, err
+	}
 
 	remoteSnap := m.remote.Clone()
 	tr := m.transport
