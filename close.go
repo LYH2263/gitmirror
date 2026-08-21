@@ -1,0 +1,45 @@
+package gitmirror
+
+import (
+	"fmt"
+
+	"github.com/LYH2263/go-gitmirror/internal/errs"
+)
+
+// Close 先将内存 tip 快照落盘，再释放镜像锁与底层资源。
+// 之后 Sync/Refs 返回 ErrClosed。
+func (m *Mirror) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed {
+		return nil
+	}
+	var first error
+	// 必须在卸锁前写快照，否则并发 Sync 可能丢更新。
+	if m.refs != nil {
+		if err := m.refs.FlushSnapshot(); err != nil && first == nil {
+			first = fmt.Errorf("%w: flush refs: %v", errs.ErrPersist, err)
+		}
+	}
+	if m.lock != nil {
+		if err := m.lock.Unlock(); err != nil && first == nil {
+			first = err
+		}
+	}
+	if m.audit != nil {
+		_ = m.audit.Close()
+	}
+	m.closed = true
+	// 保持非 nil 指针：写路径先查 closed，避免 Close 后经 lockfile 路径 panic。
+	return first
+}
+
+func (m *Mirror) guard() error {
+	if m == nil || m.closed {
+		return ErrClosed
+	}
+	if m.lock == nil || m.refs == nil {
+		return ErrClosed
+	}
+	return nil
+}
